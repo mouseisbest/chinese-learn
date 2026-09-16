@@ -1,0 +1,101 @@
+{{define "hanzi_detail.html"}}
+{{template "layout_head" .}}
+{{template "layout_nav" .}}
+{{template "layout_flash" .}}
+
+<main class="page">
+  <div class="detail-char">{{.Row.Ch}}</div>
+
+  <div style="text-align:center;margin-bottom:1.5rem">
+    <span class="badge">{{statusLabel .Row.Status}}</span>
+    <span class="faint" style="margin-left:0.5rem">{{.Row.SemesterName}}</span>
+  </div>
+
+  <div class="detail-grid">
+    <div class="detail-item">
+      <div class="detail-num">L{{.Row.Level}}</div>
+      <div class="detail-label">等级</div>
+    </div>
+    <div class="detail-item">
+      <div class="detail-num">{{if .Row.DueOn}}{{.Row.DueOn}}{{else}}—{{end}}</div>
+      <div class="detail-label">下次复习</div>
+    </div>
+    <div class="detail-item">
+      <div class="detail-num" style="color:var(--know)">{{.Row.Correct}}</div>
+      <div class="detail-label">认识次数</div>
+    </div>
+    <div class="detail-item">
+      <div class="detail-num" style="color:var(--unknown)">{{.Row.Wrong}}</div>
+      <div class="detail-label">不认识次数</div>
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:1.25rem">
+    <button class="btn-small" data-action="learn_now">今天就学</button>
+    {{if eq .Row.Status "suspended"}}
+      <button class="btn-small" data-action="resume">恢复</button>
+    {{else}}
+      <button class="btn-small" data-action="suspend">暂时不学</button>
+    {{end}}
+    <button class="btn-small danger" data-action="reset">重新学</button>
+    <button class="btn-small danger" id="del-btn">删掉这个字</button>
+  </div>
+
+  {{if .History}}
+  <div class="log-list" style="margin-top:2rem">
+    <h2 class="page-title" style="font-size:1.05rem">复习记录</h2>
+    {{range .History}}
+      <div class="log-row">
+        <div class="faint">{{.ReviewedOn}}</div>
+        <div class="{{if eq .Result "known"}}log-known{{else}}log-unknown{{end}}">
+          {{resultLabel .Result}}
+        </div>
+        <div class="faint">{{reasonLabel .Reason}} · L{{.LevelBefore}}→L{{.LevelAfter}}</div>
+        <div class="faint log-due">下次 {{.DueAfter}}</div>
+      </div>
+    {{end}}
+  </div>
+  {{else}}
+  <div class="empty-page" style="padding:2rem 1rem">
+    <p>这个字还没有复习记录。</p>
+  </div>
+  {{end}}
+
+  <div style="margin-top:2rem">
+    <a href="/hanzi" class="btn-secondary">返回字表</a>
+  </div>
+</main>
+
+<form id="action-form" method="post" hidden>
+  <input type="hidden" name="action" id="action-field">
+</form>
+<form id="delete-form" method="post" action="/api/hanzi/{{.Row.HanziID}}/delete" hidden></form>
+
+<script>
+(function () {
+  var form = document.getElementById('action-form');
+  var field = document.getElementById('action-field');
+  form.action = '/api/hanzi/{{.Row.HanziID}}/action';
+
+  document.querySelectorAll('[data-action]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var action = btn.dataset.action;
+      if (action === 'reset' && !confirm('确定要把这个字的进度清空、重新当新字学吗？')) return;
+      if (action === 'suspend' && !confirm('暂时不学这个字？它会从复习队列里消失。')) return;
+      field.value = action;
+      form.submit();
+    });
+  });
+
+  var delBtn = document.getElementById('del-btn');
+  if (delBtn) {
+    delBtn.addEventListener('click', function () {
+      if (!confirm('彻底删掉这个字？复习记录也会一起删除，无法恢复。')) return;
+      document.getElementById('delete-form').submit();
+    });
+  }
+})();
+</script>
+
+{{template "layout_foot" .}}
+{{end}}

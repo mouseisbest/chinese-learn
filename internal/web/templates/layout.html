@@ -1,0 +1,55 @@
+{{define "layout_head"}}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#4a6fa5">
+<title>{{.Title}}</title>
+<link rel="stylesheet" href="/static/app.css">
+<link rel="icon" href="/static/favicon.svg">
+</head>
+<body class="{{.BodyClass}}">
+{{end}}
+
+{{define "layout_nav"}}
+<nav class="nav">
+  <div class="nav-left">
+    <a href="/" class="nav-brand">{{.ChildName}} 的学习</a>
+    {{if .Semesters}}
+    <form method="post" action="/api/semesters/current" class="inline-form" id="sem-form">
+      <select name="semester_id" id="sem-select" aria-label="当前学期">
+        {{$cur := .CurrentSemesterID}}
+        {{range .Semesters}}
+        <option value="{{.ID}}" {{if eq .ID $cur}}selected{{end}}>
+          {{.Name}}{{if not .IsCurrent}}{{end}}
+        </option>
+        {{end}}
+      </select>
+    </form>
+    {{end}}
+  </div>
+  <div class="nav-right">
+    <a href="/hanzi">字表</a>
+    <a href="/import">导入</a>
+    <a href="/settings">设置</a>
+  </div>
+</nav>
+{{end}}
+
+{{define "layout_flash"}}
+{{if .Flash}}
+<div class="flash-banner{{if .FlashIsError}} is-error{{end}}" id="flash-banner" role="status">
+  <span class="flash-icon">{{if .FlashIsError}}!{{else}}✓{{end}}</span>
+  <span class="flash-text">{{.Flash}}</span>
+  <button class="flash-close" type="button" aria-label="关闭提示">×</button>
+</div>
+{{end}}
+{{end}}
+
+{{define "layout_foot"}}
+<script src="/static/app.js"></script>
+</body>
+</html>
+{{end}}

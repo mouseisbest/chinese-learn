@@ -1,0 +1,15 @@
+# 数据库（含 WAL 与共享内存文件）
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# 构建产物
+/chinese-learn
+
+# 备份
+backup-*.db
+
+# run.sh 运行时产物
+/run.log
+/.run.pid

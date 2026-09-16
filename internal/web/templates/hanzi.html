@@ -1,0 +1,53 @@
+{{define "hanzi.html"}}
+{{template "layout_head" .}}
+{{template "layout_nav" .}}
+{{template "layout_flash" .}}
+
+<main class="page">
+  <h1 class="page-title">字表（{{.Total}} 个）</h1>
+
+  <div class="filters">
+    {{$f := .Filter}}
+    <a class="filter-btn {{if eq $f "all"}}active{{end}}" href="/hanzi?filter=all">全部</a>
+    <a class="filter-btn {{if eq $f "due"}}active{{end}}" href="/hanzi?filter=due">今天要复习</a>
+    <a class="filter-btn {{if eq $f "new"}}active{{end}}" href="/hanzi?filter=new">还没学</a>
+    <a class="filter-btn {{if eq $f "mastered"}}active{{end}}" href="/hanzi?filter=mastered">已掌握</a>
+    <a class="filter-btn {{if eq $f "wrong"}}active{{end}}" href="/hanzi?filter=wrong">错过</a>
+  </div>
+
+  {{if not .Rows}}
+    <div class="empty-page">
+      <h2>这里还没有字</h2>
+      <p>换个筛选条件看看，或者去「导入」加一些生字。</p>
+    </div>
+  {{else}}
+  <div class="hanzi-grid">
+    {{range .Rows}}
+      <a href="/hanzi/{{.HanziID}}" class="hanzi-card{{if .IsDue}} is-due{{end}}{{if eq .Status "mastered"}} is-mastered{{end}}{{if eq .Status "suspended"}} is-suspended{{end}}">
+        <div class="hanzi-ch">{{.Ch}}</div>
+        <div class="hanzi-meta">
+          <span class="hanzi-lv">L{{.Level}}</span> ·
+          {{if .DueOn}}{{.DueOn}}{{else}}未学{{end}}
+        </div>
+        <div class="badge">{{statusLabel .Status}}</div>
+      </a>
+    {{end}}
+  </div>
+
+  {{if gt .Pages 1}}
+  <div class="pager">
+    {{if gt .Page 1}}
+      <a class="btn-small" href="/hanzi?filter={{.Filter}}&page={{add .Page -1}}">上一页</a>
+    {{end}}
+    <span class="faint">第 {{.Page}} / {{.Pages}} 页</span>
+    {{if lt .Page .Pages}}
+      <a class="btn-small" href="/hanzi?filter={{.Filter}}&page={{add .Page 1}}">下一页</a>
+    {{end}}
+  </div>
+  {{end}}
+  {{end}}
+
+</main>
+
+{{template "layout_foot" .}}
+{{end}}

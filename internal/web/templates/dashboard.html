@@ -1,0 +1,104 @@
+{{define "dashboard.html"}}
+{{template "layout_head" .}}
+{{template "layout_nav" .}}
+{{template "layout_flash" .}}
+
+<main class="page">
+
+  <div class="dash-hero">
+    {{if not .HasAnyHanzi}}
+      <h1 class="due-count" style="font-size:2rem">还没有生字</h1>
+      <p class="due-label">先去「导入」把你的生字表加进来吧</p>
+      <a href="/import" class="start-btn">去导入</a>
+    {{else}}
+      <div class="due-count">{{.PlannedCount}}</div>
+      <div class="due-label">
+        {{if eq .PlannedCount 0}}今天没有要复习的字{{else}}今天要复习这些字{{end}}
+      </div>
+      {{if gt .PlannedCount 0}}
+        <a href="/review" class="start-btn">开始 ▶</a>
+      {{else}}
+        <a href="/import" class="btn-secondary">去导入更多字</a>
+      {{end}}
+
+      {{if gt .NewRemaining 0}}
+        <div class="new-left">今天还可以学 {{.NewRemaining}} 个新字</div>
+      {{end}}
+
+      {{if .BacklogNote}}
+        <div class="backlog-note">{{.BacklogNote}}</div>
+      {{end}}
+    {{end}}
+  </div>
+
+  {{if .HasAnyHanzi}}
+  <div class="card">
+    <h2 class="page-title" style="font-size:1.05rem;margin-bottom:0.75rem">按学期进度</h2>
+    <div class="sem-list">
+      {{$stats := .SemesterStats}}
+      {{range $stats}}
+        <div class="sem-row">
+          <div class="sem-name {{if .Semester.IsCurrent}}is-current{{end}}">
+            {{if .Semester.IsCurrent}}▸ {{end}}{{.Semester.Name}}
+          </div>
+          {{if eq .Total 0}}
+            <div class="sem-empty">还没有导入生字</div>
+            <div></div>
+          {{else}}
+            <div class="sem-bar" title="已掌握 {{.Mastered}} / 学习中 {{.Learning}} / 未学 {{.New}}">
+              <div class="sem-bar-mastered" style="width:{{pct .Mastered .Total}}%"></div>
+              <div class="sem-bar-learning" style="width:{{pct .Learning .Total}}%"></div>
+            </div>
+            <div class="sem-nums">
+              {{.Total}} 字 · 已掌握 {{.Mastered}}（{{pct .Mastered .Total}}%）
+            </div>
+          {{end}}
+        </div>
+      {{end}}
+      {{if not $stats}}
+        <div class="sem-empty">还没有学期，去「导入」页新建一个</div>
+      {{end}}
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="page-title" style="font-size:1.05rem;margin-bottom:0.5rem">最近 7 天</h2>
+    <div class="heat">
+      {{range .Heat}}
+        <div class="heat-day">
+          <div class="heat-dot {{if gt .Answered 0}}has-data{{end}}"
+               style="{{if gt .Answered 0}}height:{{if gt .Answered 60}}2rem{{else if gt .Answered 20}}1.5rem{{else}}1rem{{end}}{{end}}"
+               title="{{.Day}}：做了 {{.Answered}} 个"></div>
+          <div class="heat-label">{{.Day}}</div>
+        </div>
+      {{end}}
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="page-title" style="font-size:1.05rem;margin-bottom:0.75rem">总进度</h2>
+    <div class="detail-grid">
+      <div class="detail-item">
+        <div class="detail-num">{{.Stats.Total}}</div>
+        <div class="detail-label">总字数</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-num" style="color:var(--know)">{{.Stats.Mastered}}</div>
+        <div class="detail-label">已掌握</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-num" style="color:var(--unknown)">{{.Stats.Learning}}</div>
+        <div class="detail-label">学习中</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-num" style="color:var(--ink-faint)">{{.Stats.New}}</div>
+        <div class="detail-label">还没学</div>
+      </div>
+    </div>
+  </div>
+  {{end}}
+
+</main>
+
+{{template "layout_foot" .}}
+{{end}}

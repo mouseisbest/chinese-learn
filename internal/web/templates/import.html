@@ -1,0 +1,121 @@
+{{define "import.html"}}
+{{template "layout_head" .}}
+{{template "layout_nav" .}}
+{{template "layout_flash" .}}
+
+<main class="page">
+  <h1 class="page-title">导入生字</h1>
+
+  <div class="alert alert-error" id="err-box" hidden></div>
+
+  {{if not .HasSemesters}}
+    <div class="card">
+      <p class="muted">还没有学期。先建一个，比如「一年级上册」。</p>
+      <form method="post" action="/api/semesters" class="row" style="margin-top:0.75rem">
+        <div class="field">
+          <label class="field-label" for="first-sem">学期名称</label>
+          <input class="field-input" id="first-sem" name="name" placeholder="一年级上册" required>
+        </div>
+        <button type="submit" class="btn-primary">创建</button>
+      </form>
+    </div>
+  {{else}}
+
+  <!-- 步骤一：粘贴内容 -->
+  <div class="card" id="step-input">
+    <div class="field">
+      <label class="field-label" for="sem-pick">导入到哪个学期</label>
+      <select class="field-select" id="sem-pick">
+        {{$cur := .CurrentSemesterID}}
+        {{range .Semesters}}
+        <option value="{{.ID}}" {{if eq .ID $cur}}selected{{end}}>{{.Name}}</option>
+        {{end}}
+      </select>
+    </div>
+
+    <div class="field">
+      <label class="field-label" for="src-name">这一批叫什么（可选）</label>
+      <input class="field-input" id="src-name" placeholder="第一课 生字表" style="width:100%;max-width:24rem">
+      <div class="field-hint">方便以后按来源查找和删除。</div>
+    </div>
+
+    <div class="field">
+      <label class="field-label" for="import-text">把生字内容粘贴到这里</label>
+      <textarea class="import-text" id="import-text"
+        placeholder="一行一个字，或者整篇课文，都可以。&#10;&#10;例如：&#10;天 地 人&#10;你 我 他&#10;&#10;或者直接粘一整段课文，程序会自动把里面的字抽出来。"></textarea>
+      <div class="field-hint">
+        程序会自动找出所有汉字、去掉重复的、保持出现顺序。
+        标点、数字、拼音、英文字母都会被自动忽略。
+      </div>
+    </div>
+
+    <button class="btn-primary" id="preview-btn">预览一下</button>
+  </div>
+
+  <!-- 步骤二：预览确认 -->
+  <div class="card" id="step-preview" hidden>
+    <h2 class="page-title" style="font-size:1.05rem">预览</h2>
+
+    <div class="preview-stats">
+      <div class="stat">
+        <div class="stat-num">{{"共"}}</div>
+        <div class="stat-label" id="stat-total-chars">— 个字符</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num accent" id="stat-unique">—</div>
+        <div class="stat-label">个不同的汉字</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num accent" id="stat-new">—</div>
+        <div class="stat-label">个是新的</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num soft" id="stat-exists">—</div>
+        <div class="stat-label">个已经学过（跳过）</div>
+      </div>
+    </div>
+
+    <div class="skip-note" id="skip-note" hidden></div>
+
+    <div class="field-label">前 20 个字长这样：</div>
+    <div class="preview-chars" id="preview-chars"></div>
+
+    <div class="row">
+      <button class="btn-primary" id="commit-btn">确认导入</button>
+      <button class="btn-secondary" id="back-btn">返回修改</button>
+    </div>
+  </div>
+
+  <!-- 步骤三：完成 -->
+  <div class="card" id="step-done" hidden>
+    <div class="alert alert-ok" id="done-msg"></div>
+    <div class="row">
+      <a href="/review" class="btn-primary">开始学</a>
+      <button class="btn-secondary" id="again-import">再导入一批</button>
+    </div>
+  </div>
+
+  {{end}}
+
+  {{if .Batches}}
+  <div class="card">
+    <h2 class="page-title" style="font-size:1.05rem;margin-bottom:0.75rem">
+      当前学期已导入的批次
+    </h2>
+    <div class="log-list">
+      {{range .Batches}}
+      <div class="log-row" style="grid-template-columns:1fr auto auto">
+        <div>{{.SourceName}}</div>
+        <div class="faint">{{.CharCount}} 字</div>
+        <div class="faint">{{.CreatedAt}}</div>
+      </div>
+      {{end}}
+    </div>
+  </div>
+  {{end}}
+
+</main>
+
+<script src="/static/import.js"></script>
+{{template "layout_foot" .}}
+{{end}}

@@ -1,0 +1,87 @@
+{{define "review.html"}}
+{{template "layout_head" .}}
+
+<main class="review-main" id="review-app"
+      data-child-id="{{.ChildID}}"
+      data-empty="{{if .Empty}}1{{end}}">
+
+  {{if .Empty}}
+  <!-- 没有待复习的字。
+       注意这里不放「再练一批」：队列为空说明今天确实没字了
+       （配额用完或都排到明天），重进多少次都是空的。 -->
+  <div class="review-empty">
+    <div class="empty-mark">✓</div>
+    <h1>{{.EmptyTitle}}</h1>
+    <p class="empty-sub">{{.EmptyHint}}</p>
+    <div class="empty-actions">
+      <a href="/import" class="btn-secondary">去导入生字</a>
+      <a href="/" class="btn-secondary">回首页</a>
+    </div>
+  </div>
+
+  {{else}}
+  <!-- 进度条：细而不抢注意力 -->
+  <div class="progress-bar" aria-hidden="true">
+    <div class="progress-fill" id="progress-fill"></div>
+  </div>
+  <div class="progress-text" id="progress-text"></div>
+
+  <!-- 字 -->
+  <div class="card-stage">
+    <div class="big-char" id="big-char" lang="zh">　</div>
+    <div class="reason-hint" id="reason-hint"></div>
+    <button class="speak-btn" id="speak-btn" type="button" title="读出这个字的读音">🔊 读一遍</button>
+  </div>
+
+  <!-- 两个大按钮 -->
+  <div class="card-actions">
+    <button class="big-btn btn-know" id="btn-know" type="button">
+      <span class="btn-icon">✓</span>
+      <span class="btn-text">认识</span>
+      <span class="btn-key">按 1</span>
+    </button>
+    <button class="big-btn btn-unknown" id="btn-unknown" type="button">
+      <span class="btn-icon">✗</span>
+      <span class="btn-text">不认识</span>
+      <span class="btn-key">按 2</span>
+    </button>
+  </div>
+
+  <div class="review-foot">
+    <button class="link-btn" id="btn-undo" type="button">撤销上一个</button>
+    <a href="/" class="link-btn" id="exit-link">先不练了</a>
+  </div>
+
+  <!-- 本批小结，初始隐藏 -->
+  <div class="summary-overlay" id="summary-overlay" hidden>
+    <div class="summary-card">
+      <div class="summary-mark" id="summary-mark">✓</div>
+      <h2 id="summary-title">这一批做完了</h2>
+      <div class="summary-nums">
+        <div class="num-item">
+          <div class="num" id="sum-total">0</div>
+          <div class="num-label">总共</div>
+        </div>
+        <div class="num-item num-know">
+          <div class="num" id="sum-known">0</div>
+          <div class="num-label">认识</div>
+        </div>
+        <div class="num-item num-unknown">
+          <div class="num" id="sum-unknown">0</div>
+          <div class="num-label">不认识</div>
+        </div>
+      </div>
+      <div class="summary-mistakes" id="summary-mistakes"></div>
+      <div class="summary-actions">
+        <button class="btn-primary" id="again-btn">再练一批</button>
+        <a href="/" class="btn-secondary">今天到此为止</a>
+      </div>
+    </div>
+  </div>
+  {{end}}
+</main>
+
+<script src="/static/review.js"></script>
+</body>
+</html>
+{{end}}

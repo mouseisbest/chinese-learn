@@ -1,0 +1,94 @@
+{{define "settings.html"}}
+{{template "layout_head" .}}
+{{template "layout_nav" .}}
+{{template "layout_flash" .}}
+
+<main class="page">
+  <h1 class="page-title">设置</h1>
+
+  <div class="card">
+    <form method="post" action="/api/settings">
+      <div class="setting-row">
+        <div>
+          <div class="setting-name">每天学几个新字</div>
+          <div class="setting-desc">从当前学期里放出还没学过的字。设小一点，孩子更容易坚持。</div>
+        </div>
+        <input class="field-input" type="number" name="daily_new_cap"
+               value="{{.Settings.DailyNewCap}}" min="0" max="10000">
+      </div>
+
+      <div class="setting-row">
+        <div>
+          <div class="setting-name">一次最多复习几个字</div>
+          <div class="setting-desc">孩子做完这一批，可以点「再练一批」继续。</div>
+        </div>
+        <input class="field-input" type="number" name="daily_review_cap"
+               value="{{.Settings.DailyReviewCap}}" min="1" max="10000">
+      </div>
+
+      <div class="setting-row">
+        <div>
+          <div class="setting-name">几点算新的一天</div>
+          <div class="setting-desc">默认凌晨 4 点。晚上 11 点学的字，半夜再看还算今天，不会被提前。</div>
+        </div>
+        <input class="field-input" type="number" name="day_cutoff_hour"
+               value="{{.Settings.DayCutoffHour}}" min="0" max="23">
+      </div>
+
+      <div style="margin-top:1.25rem">
+        <button type="submit" class="btn-primary">保存</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 class="page-title" style="font-size:1.05rem;margin-bottom:0.75rem">学期管理</h2>
+    <div class="sem-list">
+      {{$cur := .CurrentSemesterID}}
+      {{range .Semesters}}
+      <div class="sem-row" style="grid-template-columns:1fr auto auto">
+        <div class="sem-name {{if eq .ID $cur}}is-current{{end}}">
+          {{.Name}}{{if eq .ID $cur}} <span class="badge">当前</span>{{end}}
+        </div>
+        {{if ne .ID $cur}}
+        <form method="post" action="/api/semesters/current">
+          <input type="hidden" name="semester_id" value="{{.ID}}">
+          <button type="submit" class="btn-small">切换</button>
+        </form>
+        {{else}}
+        <div></div>
+        {{end}}
+        <form method="post" action="/api/semesters/delete"
+              onsubmit="return confirm('删除这个学期？它下面所有字的进度都会一起删除，无法恢复。')">
+          <input type="hidden" name="semester_id" value="{{.ID}}">
+          <button type="submit" class="btn-small danger">删除</button>
+        </form>
+      </div>
+      {{end}}
+    </div>
+
+    <form method="post" action="/api/semesters" class="row" style="margin-top:1.25rem">
+      <div class="field">
+        <label class="field-label" for="new-sem">新建学期</label>
+        <input class="field-input" id="new-sem" name="name" placeholder="二年级上册" required>
+      </div>
+      <input type="hidden" name="make_current" value="1">
+      <button type="submit" class="btn-primary">新建并切过去</button>
+    </form>
+    <div class="field-hint">
+      切换学期后：新字只从新学期放出，但以前没学会的字仍然会继续出现在复习里。
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="page-title" style="font-size:1.05rem;margin-bottom:0.5rem">间隔阶梯</h2>
+    <p class="faint" style="line-height:1.9;margin:0">
+      认识 → 1 → 2 → 4 → 7 → 15 → 30 → 60 → 90 天，逐级拉长。<br>
+      不认识 → 退回重来，第二天必定再看一次。<br>
+      第 2 / 3 / 7 天固定复习，没掌握的字最多隔 7 天也会再滚一遍。
+    </p>
+  </div>
+</main>
+
+{{template "layout_foot" .}}
+{{end}}

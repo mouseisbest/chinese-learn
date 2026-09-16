@@ -1,0 +1,17 @@
+{{define "error.html"}}
+{{template "layout_head" .}}
+{{template "layout_nav" .}}
+{{template "layout_flash" .}}
+
+<main class="page">
+  <div class="empty-page">
+    <h2>出了点问题</h2>
+    <p>{{.ErrorMsg}}</p>
+    <div style="margin-top:1.5rem">
+      <a href="/" class="btn-secondary">回首页</a>
+    </div>
+  </div>
+</main>
+
+{{template "layout_foot" .}}
+{{end}}
