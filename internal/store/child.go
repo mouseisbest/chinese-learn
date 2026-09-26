@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"chinese-learn/internal/day"
+	"chinese-learn/internal/hanzi"
 )
 
 // Child 是一个孩子的档案。
@@ -36,6 +37,8 @@ const (
 	KeyDailyReviewCap = "daily_review_cap"
 	KeyHeaviestThresh = "heaviest_thresh"
 	KeyDayCutoffHour  = "day_cutoff_hour"
+	// KeyPinyinFirst 控制是否先显示拼音、翻牌后才出汉字。
+	KeyPinyinFirst = "pinyin_first"
 )
 
 // 设置项的默认值。
@@ -346,6 +349,9 @@ type Settings struct {
 	DailyReviewCap int
 	HeaviestThresh int
 	DayCutoffHour  int
+	// PinyinFirst 为真时，复习先显示拼音，孩子点「显示汉字」翻牌后再判断。
+	// 这是回忆测试：看拼音想字形，比直接认字更能检验是不是真会了。
+	PinyinFirst bool
 }
 
 // DefaultSettings 返回默认参数。
@@ -355,6 +361,7 @@ func DefaultSettings() Settings {
 		DailyReviewCap: DefaultDailyReviewCap,
 		HeaviestThresh: DefaultHeaviestThresh,
 		DayCutoffHour:  DefaultDayCutoffHour,
+		PinyinFirst:    true,
 	}
 }
 
@@ -381,6 +388,12 @@ func (s *Store) GetSettings(childID int64) (Settings, error) {
 		if err := rows.Scan(&k, &v); err != nil {
 			return out, err
 		}
+		// 布尔项优先处理：它的值不是数字，走 Atoi 会被当成坏值丢掉。
+		if k == KeyPinyinFirst {
+			out.PinyinFirst = (v == "1" || v == "true")
+			continue
+		}
+
 		n, err := strconv.Atoi(v)
 		if err != nil {
 			continue // 忽略坏值，用默认
@@ -401,23 +414,31 @@ func (s *Store) GetSettings(childID int64) (Settings, error) {
 
 // SaveSettings 写入设置。
 func (s *Store) SaveSettings(childID int64, st Settings) error {
-	pairs := map[string]int{
-		KeyDailyNewCap:    st.DailyNewCap,
-		KeyDailyReviewCap: st.DailyReviewCap,
-		KeyHeaviestThresh: st.HeaviestThresh,
-		KeyDayCutoffHour:  st.DayCutoffHour,
+	pairs := map[string]string{
+		KeyDailyNewCap:    strconv.Itoa(st.DailyNewCap),
+		KeyDailyReviewCap: strconv.Itoa(st.DailyReviewCap),
+		KeyHeaviestThresh: strconv.Itoa(st.HeaviestThresh),
+		KeyDayCutoffHour:  strconv.Itoa(st.DayCutoffHour),
+		KeyPinyinFirst:    boolToStr(st.PinyinFirst),
 	}
 	return s.withTx(func(tx *sql.Tx) error {
 		for k, v := range pairs {
 			if _, err := tx.Exec(
 				`INSERT INTO settings (child_id, key, value) VALUES (?, ?, ?)
 				 ON CONFLICT(child_id, key) DO UPDATE SET value = excluded.value`,
-				childID, k, strconv.Itoa(v)); err != nil {
+				childID, k, v); err != nil {
 				return err
 			}
 		}
 		return nil
 	})
+}
+
+func boolToStr(b bool) string {
+	if b {
+		return "1"
+	}
+	return "0"
 }
 
 func clampInt(v, lo, hi int) int {
@@ -435,4 +456,54 @@ func boolToInt(b bool) int {
 		return 1
 	}
 	return 0
+}
+
+// RecomputePinyin 重新计算所有字的拼音。
+//
+// 用于拼音库升级、或发现读音有误之后。正常使用不需要，
+// 但把读音写死在库里就必须留一个更新的口子。
+func (s *Store) RecomputePinyin() (int, error) {
+	rows, err := s.db.Query(`SELECT id, ch FROM hanzi`)
+	if err != nil {
+		return 0, err
+	}
+
+	type item struct {
+		id          int64
+		ch          string
+		pin, pinAll string
+	}
+	var items []item
+	for rows.Next() {
+		var it item
+		if err := rows.Scan(&it.id, &it.ch); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		p := hanzi.LookupPinyin(it.ch)
+		it.pin, it.pinAll = p.Primary, p.All
+		items = append(items, it)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+
+	changed := 0
+	err = s.withTx(func(tx *sql.Tx) error {
+		for _, it := range items {
+			res, err := tx.Exec(
+				`UPDATE hanzi SET pinyin = ?, pinyin_all = ?
+				 WHERE id = ? AND (pinyin != ? OR pinyin_all != ?)`,
+				it.pin, it.pinAll, it.id, it.pin, it.pinAll)
+			if err != nil {
+				return err
+			}
+			if n, _ := res.RowsAffected(); n > 0 {
+				changed++
+			}
+		}
+		return nil
+	})
+	return changed, err
 }

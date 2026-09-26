@@ -320,15 +320,126 @@ a:hover { text-decoration: underline; }
   min-height: 0;
 }
 
-/* 字要尽可能大：取视口宽高的较小者，留出按钮空间。 */
+/* 字要尽可能大：取视口宽高的较小者，留出按钮空间。
+   翻牌后上方还有拼音，所以字号比纯汉字时略小（38 → 32），
+   两者加起来仍在同一屏内。
+   没有拼音可显示时（生僻字）由 JS 加 .no-pinyin 恢复大字号。 */
 .big-char {
   font-family: var(--font-hanzi);
-  font-size: min(38vh, 38vw);
+  font-size: min(32vh, 32vw);
   line-height: 1;
   font-weight: 400;
   color: var(--ink);
   user-select: none;
   -webkit-user-select: none;
+}
+
+.hanzi-panel.no-pinyin .big-char {
+  font-size: min(38vh, 38vw);
+}
+
+/* 翻牌后显示的拼音：留在汉字上方，供孩子对照确认读音。
+   比拼音阶段的小一些，避免把汉字挤小。 */
+.revealed-pinyin {
+  font-family: var(--font-ui);
+  font-size: min(7vh, 7vw);
+  line-height: 1.2;
+  font-weight: 500;
+  color: var(--brand);
+  letter-spacing: 0.02em;
+  margin-bottom: 1.5vh;
+  min-height: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  text-align: center;
+  word-break: break-all;
+}
+/* 没有拼音时（生僻字）不占高度 */
+.revealed-pinyin:empty { display: none; }
+
+/* ---- 拼音翻牌阶段 ---- */
+
+.pinyin-panel,
+.hanzi-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+/* hidden 属性必须显式生效。
+   浏览器给 [hidden] 的默认样式是 display:none，但任何类选择器里
+   写死的 display 都会盖掉它——上面 .hanzi-panel 设了 flex，
+   于是 hidden 形同虚设，汉字和拼音会同时显示。
+   加这条 !important 是为了让 hidden 始终说话算数。 */
+.pinyin-panel[hidden],
+.hanzi-panel[hidden],
+.reveal-btn[hidden],
+.speak-btn[hidden] {
+  display: none !important;
+}
+
+/* 拼音也放大：孩子要看清声调符号 */
+.big-pinyin {
+  font-family: var(--font-ui);
+  font-size: min(20vh, 20vw);
+  line-height: 1.15;
+  font-weight: 500;
+  color: var(--brand);
+  letter-spacing: 0.02em;
+  user-select: none;
+  -webkit-user-select: none;
+  word-break: break-all;
+  text-align: center;
+  padding: 0 4vw;
+}
+
+/* 多音字的其他读音：小字灰色，跟在常用音下面，不干扰主要的那个 */
+.other-pinyin {
+  font-family: var(--font-ui);
+  font-size: min(4.5vh, 4.5vw);
+  color: var(--ink-faint);
+  margin-top: 1rem;
+  letter-spacing: 0.08em;
+  min-height: 1em;
+}
+
+/* 翻牌按钮：拼音阶段的主要动作，做得显眼一些 */
+.reveal-btn {
+  margin-top: 1.75rem;
+  font-size: 1.6rem;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  padding: 1rem 3rem;
+  min-height: 3.75rem;
+  border: none;
+  border-radius: 1rem;
+  background: var(--brand);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(74, 111, 165, 0.28);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform 0.08s, filter 0.15s;
+}
+.reveal-btn:hover { filter: brightness(1.08); }
+.reveal-btn:active { transform: scale(0.97); }
+.reveal-btn[hidden] { display: none; }
+
+/* 判定按钮在拼音阶段禁用：视觉上变淡，明确表示还不能点 */
+.big-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.big-btn:disabled:active { transform: none; }
+
+@media (max-width: 30rem) {
+  .big-pinyin { font-size: min(16vh, 22vw); }
+  .other-pinyin { font-size: 1rem; }
+  .reveal-btn { font-size: 1.35rem; padding: 0.875rem 2.25rem; margin-top: 1.25rem; }
 }
 
 .reason-hint {
@@ -750,6 +861,46 @@ select.field-select:focus, input.field-input:focus {
 .setting-desc { font-size: 0.82rem; color: var(--ink-faint); margin-top: 0.2rem; line-height: 1.5; }
 .setting-row input, .setting-row select { width: 6rem; text-align: center; }
 
+/* 开关控件（设置页的布尔项） */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 3.5rem;
+  height: 2rem;
+  flex-shrink: 0;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.switch-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: var(--line);
+  border-radius: 999px;
+  transition: background 0.2s;
+}
+.switch-slider::before {
+  content: "";
+  position: absolute;
+  height: 1.5rem;
+  width: 1.5rem;
+  left: 0.25rem;
+  bottom: 0.25rem;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.switch input:checked + .switch-slider { background: var(--know); }
+.switch input:checked + .switch-slider::before { transform: translateX(1.5rem); }
+.switch input:focus-visible + .switch-slider {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
 /* ---------------- 空状态 ---------------- */
 
 .empty-page { text-align: center; padding: 3rem 1rem; color: var(--ink-soft); }
@@ -773,9 +924,20 @@ select.field-select:focus, input.field-input:focus {
 
 /* 横屏手机：字和按钮并排，避免字太小 */
 @media (orientation: landscape) and (max-height: 30rem) {
-  .big-char { font-size: min(50vh, 26vw); }
-  .card-actions { min-height: 0; }
-  .big-btn { min-height: 26vh; }
+  /* 横屏高度紧张：手机横屏时可用高度常常不到 400px，
+     汉字 + 拼音 + 两个大按钮必须一起挤进去。
+     字号和按钮都收一档，宁可字小些也不能让按钮掉出屏幕。 */
+  .big-char { font-size: min(34vh, 18vw); }
+  .hanzi-panel.no-pinyin .big-char { font-size: min(42vh, 22vw); }
+  .revealed-pinyin { font-size: min(7vh, 3.5vw); margin-bottom: 0.8vh; }
+  .big-pinyin { font-size: min(22vh, 12vw); }
+  .card-actions { min-height: 0; padding: 0 6vw 1.5vh; }
+  .big-btn { min-height: 22vh; }
+  .btn-icon { font-size: 1.75rem; }
+  .btn-text { font-size: 1.4rem; }
+  .review-foot { padding: 0 6vw 0.75rem; }
+  .speak-btn { margin-top: 0.75rem; padding: 0.75rem 1.75rem; font-size: 1.25rem; }
+  .reveal-btn { margin-top: 1rem; padding: 0.75rem 2rem; font-size: 1.35rem; }
 }
 
 /* 尊重系统的减少动画偏好 */

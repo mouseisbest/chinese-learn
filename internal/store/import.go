@@ -185,12 +185,15 @@ func (s *Store) CommitImport(req ImportRequest) (int64, error) {
 		for i, r := range ex.Ordered {
 			ch := string(r)
 
+			// 拼音在导入时算好存下来：复习时直接用，不必每次查字典。
+			py := hanzi.LookupPinyin(ch)
+
 			// 幂等核心：已存在则跳过，不报错。
 			res, err := tx.Exec(
-				`INSERT INTO hanzi (child_id, ch, codepoint, seq, semester_id, status)
-				 VALUES (?, ?, ?, ?, ?, 'new')
+				`INSERT INTO hanzi (child_id, ch, codepoint, seq, semester_id, status, pinyin, pinyin_all)
+				 VALUES (?, ?, ?, ?, ?, 'new', ?, ?)
 				 ON CONFLICT(child_id, ch) DO NOTHING`,
-				req.ChildID, ch, int(r), baseSeq+i, req.SemesterID)
+				req.ChildID, ch, int(r), baseSeq+i, req.SemesterID, py.Primary, py.All)
 			if err != nil {
 				return fmt.Errorf("写入汉字 %s: %w", ch, err)
 			}

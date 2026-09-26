@@ -98,6 +98,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/hanzi/{id}/action", s.handleHanziAction)
 	mux.HandleFunc("POST /api/hanzi/{id}/delete", s.handleHanziDelete)
 	mux.HandleFunc("POST /api/settings", s.handleSaveSettings)
+	mux.HandleFunc("POST /api/pinyin/recompute", s.handleRecomputePinyin)
 
 	// ---- 静态资源 ----
 	mux.Handle("GET /static/", s.staticHandler())

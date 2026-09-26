@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"chinese-learn/internal/day"
+	"chinese-learn/internal/hanzi"
 	"chinese-learn/internal/schedule"
 )
 
@@ -23,8 +24,21 @@ type QueueItem struct {
 	// IsNew 表示这是从未学过的新字。
 	IsNew bool
 
+	// Pinyin 是常用读音（带声调），PinyinAll 是全部读音，空格分隔。
+	// 复习时先显示拼音、翻牌后才显示汉字，用于「看拼音想字形」。
+	Pinyin    string
+	PinyinAll string
+
 	// row 保留原始列，用于重建调度状态计算 Reason。
 	row queueFields
+}
+
+// OtherReadings 返回除常用音之外的其他读音，用于小字标注。
+//
+// 只有常见多音字才会返回内容——判断逻辑在 hanzi 包，
+// 那里维护着白名单。
+func (it QueueItem) OtherReadings() []string {
+	return hanzi.OtherReadings(it.Ch, it.Pinyin, it.PinyinAll)
 }
 
 // Plan 是今天这一批的复习计划。
@@ -141,7 +155,7 @@ func (s *Store) dueItems(childID int64, p schedule.Params, today day.Day, limit 
 	rows, err := s.db.Query(
 		`SELECT rs.hanzi_id, h.ch, h.semester_id, rs.level, h.status,
 		        rs.due_on, rs.last_review_on, rs.first_learned_on,
-		        rs.streak_wrong, rs.interval_days
+		        rs.streak_wrong, rs.interval_days, h.pinyin, h.pinyin_all
 		 FROM review_state rs
 		 JOIN hanzi h ON h.id = rs.hanzi_id
 		 WHERE rs.child_id = ? AND h.status <> 'suspended'
@@ -174,7 +188,7 @@ func (s *Store) dueItems(childID int64, p schedule.Params, today day.Day, limit 
 func (s *Store) newItems(childID, semesterID int64, limit int) ([]QueueItem, error) {
 	rows, err := s.db.Query(
 		`SELECT h.id, h.ch, h.semester_id, 0, h.status,
-		        NULL, NULL, NULL, 0, 0
+		        NULL, NULL, NULL, 0, 0, h.pinyin, h.pinyin_all
 		 FROM hanzi h
 		 JOIN review_state rs ON rs.hanzi_id = h.id
 		 WHERE h.child_id = ? AND h.semester_id = ?
@@ -263,7 +277,8 @@ func scanQueueItem(rows rowScanner) (QueueItem, error) {
 	var level int
 
 	err := rows.Scan(&hid, &ch, &semID, &level, &status,
-		&f.dueOn, &f.lastReviewOn, &f.firstLearned, &f.streakWrong, &f.intervalDays)
+		&f.dueOn, &f.lastReviewOn, &f.firstLearned, &f.streakWrong, &f.intervalDays,
+		&it.Pinyin, &it.PinyinAll)
 	if err != nil {
 		return it, fmt.Errorf("扫描队列行: %w", err)
 	}

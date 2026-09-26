@@ -62,6 +62,10 @@ CREATE TABLE hanzi (
   semester_id      INTEGER NOT NULL REFERENCES semester(id) ON DELETE CASCADE,
   status           TEXT NOT NULL DEFAULT 'new'
                    CHECK (status IN ('new', 'learning', 'reviewing', 'mastered', 'suspended')),
+  -- pinyin 是常用读音（带声调），pinyin_all 是全部读音，空格分隔。
+  -- 导入时算好存下来，复习时直接读，不用每次查字典。
+  pinyin           TEXT NOT NULL DEFAULT '',
+  pinyin_all       TEXT NOT NULL DEFAULT '',
   first_learned_on TEXT,
   created_at       TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
 );

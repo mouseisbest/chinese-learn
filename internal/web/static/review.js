@@ -30,6 +30,13 @@
   var btnSpeak = document.getElementById('speak-btn');
   var btnUndo = document.getElementById('btn-undo');
   var exitLink = document.getElementById('exit-link');
+  var cardStage = document.getElementById('card-stage');
+  var elPinyin = document.getElementById('big-pinyin');
+  var elOtherPinyin = document.getElementById('other-pinyin');
+  var elRevealedPinyin = document.getElementById('revealed-pinyin');
+  var pinyinPanel = document.getElementById('pinyin-panel');
+  var hanziPanel = document.getElementById('hanzi-panel');
+  var btnReveal = document.getElementById('reveal-btn');
 
   // ---- 状态 ----
   var queue = [];        // 待出卡的字
@@ -38,6 +45,10 @@
   var answered = 0;
   var knownCount = 0;
   var unknownCount = 0;
+  // pinyinFirst：是否走「先拼音 → 翻牌 → 判断」的流程，由设置决定。
+  // revealed：当前这张牌是否已翻开。
+  var pinyinFirst = true;
+  var revealed = false;
   var mistakes = [];     // 本批答错的字，小结时展示
   var plannedTotal = 0;
   var sessionId = makeId();
@@ -51,6 +62,7 @@
   // ---- 事件绑定 ----
   btnKnow.addEventListener('click', function () { answer('known'); });
   btnUnknown.addEventListener('click', function () { answer('unknown'); });
+  btnReveal.addEventListener('click', reveal);
   btnSpeak.addEventListener('click', speakCurrent);
   btnUndo.addEventListener('click', undoLast);
   exitLink.addEventListener('click', confirmExit);
@@ -60,6 +72,16 @@
       if (e.key === 'Enter') { e.preventDefault(); document.getElementById('again-btn').click(); }
       return;
     }
+
+    // 拼音阶段：空格或回车翻牌。翻牌前不接受判定。
+    if (pinyinFirst && !revealed) {
+      if (e.key === ' ' || e.key === 'Spacebar' || e.key === 'Enter') {
+        e.preventDefault();
+        reveal();
+      }
+      return;
+    }
+
     switch (e.key) {
       case '1': case 'ArrowLeft': case 'j': case 'J':
         e.preventDefault(); answer('known'); break;
@@ -90,6 +112,8 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (data.error) { showError(data.error); return; }
+        // 拼音阶段由设置控制，服务端在计划里告诉我们。
+        pinyinFirst = data.pinyin_first !== false;
         queue = data.items || [];
         plannedTotal = queue.length;
         if (queue.length === 0) {
@@ -115,30 +139,81 @@
 
   function showChar(item) {
     lastShown = item;
-    elChar.textContent = item.ch || '　';
-    elReason.textContent = item.reason_label && item.reason !== 'new' ? item.reason_label : '';
     charShownAt = Date.now();
+    elReason.textContent = item.reason_label && item.reason !== 'new' ? item.reason_label : '';
+
+    // 汉字和翻牌后的拼音都先填好，翻牌时直接显示，不用等渲染。
+    elChar.textContent = item.ch || '　';
+    elRevealedPinyin.textContent = item.pinyin || '';
+    // 有些生僻字没有拼音，这时让汉字占满空间（CSS 靠这个类判断）。
+    hanziPanel.classList.toggle('no-pinyin', !item.pinyin);
+
+    if (pinyinFirst) {
+      // 先出拼音，孩子看拼音想字形。想不出来就翻牌看答案。
+      revealed = false;
+      elPinyin.textContent = item.pinyin || '（没有拼音）';
+      renderOtherReadings(item.other_readings);
+      setPhase('pinyin');
+    } else {
+      revealed = true;
+      setPhase('hanzi');
+    }
 
     // 刻意不自动朗读：读出来等于给了答案，自评就失去意义了。
     // 孩子认不出时自己点「读一遍」即可。
 
     // 预取下一张：解码字体、预热渲染，让点击后换字无延迟。
-    if (queue.length > 0) {
-      var probe = document.createElement('span');
-      probe.style.position = 'absolute';
-      probe.style.visibility = 'hidden';
-      probe.style.fontSize = '10px';
-      probe.style.fontFamily = getComputedStyle(elChar).fontFamily;
-      probe.textContent = queue[0].ch || '';
-      document.body.appendChild(probe);
-      setTimeout(function () { document.body.removeChild(probe); }, 50);
-    }
+    prefetchNext();
+  }
+
+  // setPhase 切换「拼音阶段」和「汉字阶段」的显示。
+  function setPhase(phase) {
+    var isPinyin = (phase === 'pinyin');
+    cardStage.dataset.phase = phase;
+    pinyinPanel.hidden = !isPinyin;
+    hanziPanel.hidden = isPinyin;
+    btnReveal.hidden = !isPinyin;
+    // 朗读按钮只在汉字阶段可用：拼音阶段听到读音就没得想了。
+    btnSpeak.hidden = isPinyin;
+
+    // 判定按钮要等翻牌后才能点，否则等于没看字就作答。
+    btnKnow.disabled = isPinyin;
+    btnUnknown.disabled = isPinyin;
+  }
+
+  // reveal 翻开当前这张牌，显示汉字并启用判定按钮。
+  function reveal() {
+    if (revealed || !current) return;
+    revealed = true;
+    setPhase('hanzi');
+  }
+
+  function renderOtherReadings(readings) {
+    elOtherPinyin.textContent = '';
+    if (!readings || readings.length === 0) return;
+    // 多音字：其他读音用小字标在常用音下面，让孩子知道还有别的读法。
+    elOtherPinyin.textContent = readings.join(' · ');
+  }
+
+  function prefetchNext() {
+    if (queue.length === 0) return;
+    var probe = document.createElement('span');
+    probe.style.position = 'absolute';
+    probe.style.visibility = 'hidden';
+    probe.style.fontSize = '10px';
+    probe.style.fontFamily = getComputedStyle(elChar).fontFamily;
+    probe.textContent = queue[0].ch || '';
+    document.body.appendChild(probe);
+    setTimeout(function () { document.body.removeChild(probe); }, 50);
   }
 
   // ---- 作答 ----
 
   function answer(result) {
     if (showingSummary || !current) return;
+    // 没翻牌就不能判定——否则等于没看字就作答。
+    // 按钮在拼音阶段是 disabled 的，这里再挡一层防脚本误调。
+    if (pinyinFirst && !revealed) return;
 
     var item = current;
     var latency = Date.now() - charShownAt;
@@ -259,8 +334,8 @@
       window.speechSynthesis.cancel();
       var u = new SpeechSynthesisUtterance(current.ch);
       u.lang = 'zh-CN';
-      u.rate = 0.85;   // 慢一点，方便孩子听清
-      u.pitch = 1.0;
+      u.rate = 0.6;    // 放慢，给孩子跟读的时间
+      u.pitch = 1.15;  // 略高，接近女声的音色
 
       var voice = pickChineseVoice();
       if (voice) u.voice = voice;
@@ -271,18 +346,58 @@
     }
   }
 
+  // pickChineseVoice 挑一个中文女声。
+  //
+  // 浏览器的语音列表里没有性别字段，只能靠名字里的关键词判断。
+  // 各平台的命名习惯：Chrome/Edge 用 "Google 普通话（中国大陆）"、
+  // "Microsoft Xiaoxiao"；苹果用 "Ting-Ting"、"Mei-Jia"；
+  // 安卓常见 "zh-cn-x-ccc-local" 这类内部代号。
+  // 挑不到女声就退回任意中文语音，再没有就返回 null 用系统默认。
+  var FEMALE_HINTS = [
+    'xiaoxiao', 'xiaoyi', 'xiaomo', 'xiaoxuan', 'xiaohan',
+    'ting-ting', 'tingting', 'meijia', 'mei-jia', 'sinji',
+    'huihui', 'yaoyao', 'kangkang', 'female', 'woman', 'girl',
+    '婷婷', '女'
+  ];
+  var MALE_HINTS = ['yunxi', 'yunjian', 'kangkang', 'male', 'man', '云希'];
+
   function pickChineseVoice() {
     var voices = window.speechSynthesis.getVoices();
+    var chinese = [];
     for (var i = 0; i < voices.length; i++) {
-      var lang = voices[i].lang || '';
-      if (lang.indexOf('zh') === 0 || lang.indexOf('cmn') === 0) return voices[i];
+      var lang = (voices[i].lang || '').toLowerCase();
+      if (lang.indexOf('zh') === 0 || lang.indexOf('cmn') === 0) {
+        chinese.push(voices[i]);
+      }
     }
-    return null;
+    if (chinese.length === 0) return null;
+
+    // 先找明确是女声的
+    for (var j = 0; j < chinese.length; j++) {
+      if (matchesAny(chinese[j].name, FEMALE_HINTS)) return chinese[j];
+    }
+    // 再排除明确是男声的
+    for (var k = 0; k < chinese.length; k++) {
+      if (!matchesAny(chinese[k].name, MALE_HINTS)) return chinese[k];
+    }
+    return chinese[0];
   }
 
-  // 语音列表在部分浏览器里是异步加载的。
+  function matchesAny(name, hints) {
+    if (!name) return false;
+    var n = name.toLowerCase();
+    for (var i = 0; i < hints.length; i++) {
+      if (n.indexOf(hints[i]) !== -1) return true;
+    }
+    return false;
+  }
+
+  // 语音列表在部分浏览器里是异步加载的，第一次取可能为空。
   if ('speechSynthesis' in window) {
-    window.speechSynthesis.onvoiceschanged = function () { /* 触发一次加载 */ };
+    window.speechSynthesis.getVoices(); // 触发加载
+    window.speechSynthesis.onvoiceschanged = function () {
+      window.speechSynthesis.getVoices(); // 列表就绪后缓存起来
+    };
   }
 
   // ---- 进度与小结 ----

@@ -22,6 +22,9 @@ type planItemJSON struct {
 	ReasonLabel string `json:"reason_label"`
 	Level       int    `json:"level"`
 	IsNew       bool   `json:"is_new"`
+	// Pinyin 是常用读音，OtherReadings 是其他读音（多音字的小字标注）。
+	Pinyin        string   `json:"pinyin"`
+	OtherReadings []string `json:"other_readings,omitempty"`
 }
 
 type planJSON struct {
@@ -32,6 +35,8 @@ type planJSON struct {
 	Backlog     int            `json:"backlog"`
 	Today       string         `json:"today"`
 	PlannedSize int            `json:"planned_size"`
+	// PinyinFirst 告诉前端是否要走「先拼音、翻牌、再判断」的流程。
+	PinyinFirst bool `json:"pinyin_first"`
 }
 
 func (s *Server) handlePlan(w http.ResponseWriter, r *http.Request) {
@@ -47,6 +52,8 @@ func (s *Server) handlePlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cfg := s.settingsFor(childID)
+
 	out := planJSON{
 		Items:       make([]planItemJSON, 0, len(plan.Items)),
 		DueTotal:    plan.DueTotal,
@@ -55,15 +62,18 @@ func (s *Server) handlePlan(w http.ResponseWriter, r *http.Request) {
 		Backlog:     plan.Backlog,
 		Today:       string(plan.Day),
 		PlannedSize: len(plan.Items),
+		PinyinFirst: cfg.PinyinFirst,
 	}
 	for _, it := range plan.Items {
 		out.Items = append(out.Items, planItemJSON{
-			HanziID:     it.HanziID,
-			Ch:          it.Ch,
-			Reason:      it.Reason,
-			ReasonLabel: it.ReasonLabel,
-			Level:       it.Level,
-			IsNew:       it.IsNew,
+			HanziID:       it.HanziID,
+			Ch:            it.Ch,
+			Reason:        it.Reason,
+			ReasonLabel:   it.ReasonLabel,
+			Level:         it.Level,
+			IsNew:         it.IsNew,
+			Pinyin:        it.Pinyin,
+			OtherReadings: it.OtherReadings(),
 		})
 	}
 
@@ -617,6 +627,9 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		cur.DailyNewCap = clamp(newCap, 0, maxSettingValue)
 		cur.DailyReviewCap = clamp(reviewCap, 1, maxSettingValue)
 		cur.DayCutoffHour = clamp(cutoffHour, 0, 23)
+		// checkbox 未勾选时浏览器根本不发这个字段，所以用「有没有值」判断，
+		// 不能用默认值——那会导致永远关不掉。
+		cur.PinyinFirst = r.FormValue("pinyin_first") != ""
 
 		if err := s.st.SaveSettings(childID, cur); err != nil {
 			s.log.Error("保存设置失败", "err", err)
@@ -653,6 +666,25 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 // maxSettingValue 是数量类设置的防呆上限，取自 store 的单一来源。
 const maxSettingValue = store.MaxSettingValue
 
+// handleRecomputePinyin 重新计算所有字的拼音。
+//
+// 拼音在导入时算好写进库里，拼音库升级后需要手动重算一次。
+func (s *Server) handleRecomputePinyin(w http.ResponseWriter, r *http.Request) {
+	n, err := s.st.RecomputePinyin()
+	if err != nil {
+		s.log.Error("重算拼音失败", "err", err)
+		s.writeError(w, http.StatusInternalServerError, "重算失败")
+		return
+	}
+	s.log.Info("重算拼音完成", "changed", n)
+
+	if s.wantsHTML(r) {
+		http.Redirect(w, r, withMsg("/settings", "pinyin"), http.StatusSeeOther)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, map[string]any{"ok": true, "changed": n})
+}
+
 // ---------------- 助手 ----------------
 
 // flashMessages 把 flash 代码映射成给人看的提示。
@@ -665,6 +697,7 @@ var flashMessages = map[string]string{
 	"created":  "学期已创建",
 	"deleted":  "学期已删除",
 	"badvalue": "请输入数字。刚才的改动没有保存。",
+	"pinyin":   "拼音已重新计算",
 }
 
 // withMsg 给跳转地址追加 flash 提示参数。

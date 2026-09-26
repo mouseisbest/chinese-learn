@@ -26,21 +26,39 @@
   </div>
   <div class="progress-text" id="progress-text"></div>
 
-  <!-- 字 -->
-  <div class="card-stage">
-    <div class="big-char" id="big-char" lang="zh">　</div>
+  <!-- 卡片舞台：先显示拼音，翻牌后才显示汉字 -->
+  <div class="card-stage" id="card-stage" data-phase="pinyin">
+
+    <!-- 阶段一：拼音 -->
+    <div class="pinyin-panel" id="pinyin-panel">
+      <div class="big-pinyin" id="big-pinyin"></div>
+      <div class="other-pinyin" id="other-pinyin"></div>
+    </div>
+
+    <!-- 阶段二：汉字 + 拼音（初始隐藏）。
+         翻牌后拼音保留在字的上方，孩子可以对照着确认读音。 -->
+    <div class="hanzi-panel" id="hanzi-panel" hidden>
+      <div class="revealed-pinyin" id="revealed-pinyin"></div>
+      <div class="big-char" id="big-char" lang="zh">　</div>
+    </div>
+
     <div class="reason-hint" id="reason-hint"></div>
-    <button class="speak-btn" id="speak-btn" type="button" title="读出这个字的读音">🔊 读一遍</button>
+
+    <!-- 翻牌按钮：只在拼音阶段显示 -->
+    <button class="reveal-btn" id="reveal-btn" type="button">显示汉字</button>
+
+    <!-- 朗读按钮：只在汉字阶段显示（先听读音就等于给答案了） -->
+    <button class="speak-btn" id="speak-btn" type="button" title="读出这个字的读音" hidden>🔊 读一遍</button>
   </div>
 
-  <!-- 两个大按钮 -->
-  <div class="card-actions">
-    <button class="big-btn btn-know" id="btn-know" type="button">
+  <!-- 两个大按钮：拼音阶段禁用，翻牌后才可用 -->
+  <div class="card-actions" id="card-actions">
+    <button class="big-btn btn-know" id="btn-know" type="button" disabled>
       <span class="btn-icon">✓</span>
       <span class="btn-text">认识</span>
       <span class="btn-key">按 1</span>
     </button>
-    <button class="big-btn btn-unknown" id="btn-unknown" type="button">
+    <button class="big-btn btn-unknown" id="btn-unknown" type="button" disabled>
       <span class="btn-icon">✗</span>
       <span class="btn-text">不认识</span>
       <span class="btn-key">按 2</span>

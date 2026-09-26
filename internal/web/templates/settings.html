@@ -10,6 +10,21 @@
     <form method="post" action="/api/settings">
       <div class="setting-row">
         <div>
+          <div class="setting-name">先看拼音，再显示汉字</div>
+          <div class="setting-desc">
+            开启后，每个字先只显示拼音，孩子点「显示汉字」翻牌后再判断认不认识。
+            看拼音想字形是回忆测试，比直接认字更能检验是不是真记住了。
+          </div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" name="pinyin_first" value="1"
+                 {{if .Settings.PinyinFirst}}checked{{end}}>
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <div>
           <div class="setting-name">每天学几个新字</div>
           <div class="setting-desc">从当前学期里放出还没学过的字。设小一点，孩子更容易坚持。</div>
         </div>
@@ -78,6 +93,17 @@
     <div class="field-hint">
       切换学期后：新字只从新学期放出，但以前没学会的字仍然会继续出现在复习里。
     </div>
+  </div>
+
+  <div class="card">
+    <h2 class="page-title" style="font-size:1.05rem;margin-bottom:0.5rem">拼音</h2>
+    <p class="faint" style="line-height:1.9;margin:0 0 1rem">
+      每个字的读音在导入时算好存进数据库。如果发现某个字读音不对，
+      可以重新计算一遍。
+    </p>
+    <form method="post" action="/api/pinyin/recompute">
+      <button type="submit" class="btn-secondary">重新计算所有拼音</button>
+    </form>
   </div>
 
   <div class="card">
